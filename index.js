@@ -119,7 +119,7 @@ async function fetchBetboltLeaderboard(from, to) {
 
   const response = await fetch(url, {
     headers: {
-      'Authorization': 'bb_secret_key_0199b8fe743b74779b3623aaa7fbbda30d449aee4d8043c6' // <-- Replace with your Betbolt Secret!
+      'Authorization': '0199b8fe743b74779b3623aaa7fbbda30d449aee4d8043c6' // <-- Replace with your Betbolt Secret!
     }
   });
 
