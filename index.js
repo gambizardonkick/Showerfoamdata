@@ -3,7 +3,7 @@ import cors from 'cors';
 import fetch from 'node-fetch';
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 
@@ -115,7 +115,9 @@ async function fetchBetboltLeaderboard(from, to, options = {}) {
   url.searchParams.append('end_date', to.toISOString());
   url.searchParams.append('sort_by', options.sort_by ?? 'wager');
   url.searchParams.append('sort_order', options.sort_order ?? 'desc');
-  url.searchParams.append('categories', options.categories ?? '');
+  if (options.categories) {
+    url.searchParams.append('categories', options.categories);
+  }
 
   const response = await fetch(url.toString(), {
     headers: {
@@ -219,6 +221,6 @@ app.get('/api/prev-leaderboard/betbolt', async (req, res) => {
 });
 
 // Start server
-app.listen(PORT, () => {
-  console.log(`✅ Server running at http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`✅ Server running at http://0.0.0.0:${PORT}`);
 });
