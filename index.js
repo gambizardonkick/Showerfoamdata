@@ -7,6 +7,13 @@ const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 
+// Cache for Betbolt data (5 requests/hour for both endpoints = 30 min cache to stay under limit)
+const betboltCache = {
+  current: { data: null, timestamp: 0 },
+  previous: { data: null, timestamp: 0 }
+};
+const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes in milliseconds
+
 // Get current month start and end (UTC)
 function getCurrentMonthRangeUTC() {
   const now = new Date();
@@ -104,8 +111,25 @@ app.get('/api/prev-leaderboard/rainbet', async (req, res) => {
   }
 });
 
-// === BETBOLT HELPER (with logging) ===
-const BETBOLT_SECRET = 'bb_secret_key_0199b8fe743b74779b3623aaa7fbbda30d449aee4d8043c6';
+// === /api/countdown/rainbet ===
+app.get('/api/countdown/rainbet', async (req, res) => {
+  try {
+    const now = Date.now();
+    const totalDuration = END_TIME.getTime() - START_TIME.getTime();
+    const elapsed = now - START_TIME.getTime();
+    const percentageLeft = Math.max(0, Math.min(100, ((totalDuration - elapsed) / totalDuration) * 100));
+    
+    res.json({
+      percentageLeft: parseFloat(percentageLeft.toFixed(2))
+    });
+  } catch (error) {
+    console.error('Error calculating countdown:', error);
+    res.status(500).json({ error: 'Failed to calculate countdown' });
+  }
+});
+
+// === BETBOLT HELPER (with caching) ===
+const BETBOLT_SECRET = process.env.BETBOLT_SECRET || 'bb_secret_key_0199b8fe743b74779b3623aaa7fbbda30d449aee4d8043c6';
 
 async function fetchBetboltLeaderboard(from, to, options = {}) {
   const url = new URL('https://openapi.betbolt.com/v1/referral/leaderboard');
@@ -144,9 +168,19 @@ async function fetchBetboltLeaderboard(from, to, options = {}) {
   return result;
 }
 
-// === /api/leaderboard/betbolt ===
+// === /api/leaderboard/betbolt (with cache) ===
 app.get('/api/leaderboard/betbolt', async (req, res) => {
   try {
+    const now = Date.now();
+    
+    // Check if cache is valid
+    if (betboltCache.current.data && (now - betboltCache.current.timestamp) < CACHE_DURATION) {
+      console.log('[BETBOLT] Serving from cache (current month)');
+      return res.json(betboltCache.current.data);
+    }
+
+    // Fetch fresh data
+    console.log('[BETBOLT] Cache expired or empty, fetching fresh data (current month)');
     const [START_TIME_LOCAL, END_TIME_LOCAL] = getCurrentMonthRangeUTC();
     const opts = {
       limit: req.query.limit ? Number(req.query.limit) : undefined,
@@ -167,21 +201,46 @@ app.get('/api/leaderboard/betbolt', async (req, res) => {
 
     const prizes = [1000, 550, 275, 125, 50, 0, 0, 0, 0, 0].map((reward, i) => ({ position: i + 1, reward }));
 
-    res.json({
+    const responseData = {
       leaderboard,
       prizes,
       startTime: START_TIME_LOCAL.toISOString(),
       endTime: END_TIME_LOCAL.toISOString()
-    });
+    };
+
+    // Update cache
+    betboltCache.current = {
+      data: responseData,
+      timestamp: now
+    };
+
+    res.json(responseData);
   } catch (error) {
     console.error('Error fetching Betbolt leaderboard:', error);
+    
+    // If cache exists, serve stale data on error
+    if (betboltCache.current.data) {
+      console.log('[BETBOLT] Error occurred, serving stale cache');
+      return res.json(betboltCache.current.data);
+    }
+    
     res.status(500).json({ error: error.message || 'Failed to fetch Betbolt leaderboard data' });
   }
 });
 
-// === /api/prev-leaderboard/betbolt ===
+// === /api/prev-leaderboard/betbolt (with cache) ===
 app.get('/api/prev-leaderboard/betbolt', async (req, res) => {
   try {
+    const now = Date.now();
+    
+    // Check if cache is valid
+    if (betboltCache.previous.data && (now - betboltCache.previous.timestamp) < CACHE_DURATION) {
+      console.log('[BETBOLT] Serving from cache (previous month)');
+      return res.json(betboltCache.previous.data);
+    }
+
+    // Fetch fresh data
+    console.log('[BETBOLT] Cache expired or empty, fetching fresh data (previous month)');
     const [PREV_START_TIME, PREV_END_TIME] = getPreviousMonthRangeUTC();
     const opts = {
       limit: req.query.limit ? Number(req.query.limit) : undefined,
@@ -202,27 +261,35 @@ app.get('/api/prev-leaderboard/betbolt', async (req, res) => {
 
     const prizes = [1000, 550, 275, 125, 50, 0, 0, 0, 0, 0].map((reward, i) => ({ position: i + 1, reward }));
 
-    res.json({
+    const responseData = {
       leaderboard,
       prizes,
       startTime: PREV_START_TIME.toISOString(),
       endTime: PREV_END_TIME.toISOString()
-    });
+    };
+
+    // Update cache
+    betboltCache.previous = {
+      data: responseData,
+      timestamp: now
+    };
+
+    res.json(responseData);
   } catch (error) {
     console.error('Error fetching previous Betbolt leaderboard:', error);
+    
+    // If cache exists, serve stale data on error
+    if (betboltCache.previous.data) {
+      console.log('[BETBOLT] Error occurred, serving stale cache');
+      return res.json(betboltCache.previous.data);
+    }
+    
     res.status(500).json({ error: error.message || 'Failed to fetch previous Betbolt leaderboard data' });
   }
-});
-
-app.get('/api/countdown/rainbet', (req, res) => {
-  const now = new Date();
-  const total = END_TIME - START_TIME;
-  const remaining = END_TIME - now;
-  const percentageLeft = Math.max(0, Math.min(100, (remaining / total) * 100));
-  res.json({ percentageLeft: parseFloat(percentageLeft.toFixed(2)) });
 });
 
 // Start server
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ Server running at http://0.0.0.0:${PORT}`);
+  console.log(`📦 Betbolt cache duration: ${CACHE_DURATION / 60000} minutes`);
 });
