@@ -159,10 +159,7 @@ app.get('/api/leaderboard/betbolt', async (req, res) => {
 
     const entries = Array.isArray(data.data) ? data.data : [];
     let leaderboard = entries.map(entry => ({
-      id: entry.id,
       name: maskUsername(entry.username),
-      favoriteGameId: entry.favoriteGameId,
-      favoriteGameTitle: entry.favoriteGameTitle,
       wager: parseFloat(entry.wagered) || 0
     }));
     leaderboard.sort((a, b) => b.wager - a.wager);
@@ -197,10 +194,7 @@ app.get('/api/prev-leaderboard/betbolt', async (req, res) => {
 
     const entries = Array.isArray(data.data) ? data.data : [];
     let leaderboard = entries.map(entry => ({
-      id: entry.id,
       name: maskUsername(entry.username),
-      favoriteGameId: entry.favoriteGameId,
-      favoriteGameTitle: entry.favoriteGameTitle,
       wager: parseFloat(entry.wagered) || 0
     }));
     leaderboard.sort((a, b) => b.wager - a.wager);
