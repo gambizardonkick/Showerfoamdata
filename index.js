@@ -214,6 +214,14 @@ app.get('/api/prev-leaderboard/betbolt', async (req, res) => {
   }
 });
 
+app.get('/api/countdown/rainbet', (req, res) => {
+  const now = new Date();
+  const total = END_TIME - START_TIME;
+  const remaining = END_TIME - now;
+  const percentageLeft = Math.max(0, Math.min(100, (remaining / total) * 100));
+  res.json({ percentageLeft: parseFloat(percentageLeft.toFixed(2)) });
+});
+
 // Start server
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ Server running at http://0.0.0.0:${PORT}`);
