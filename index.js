@@ -157,7 +157,7 @@ app.get('/api/leaderboard/betbolt', async (req, res) => {
     leaderboard = leaderboard.slice(0, 10);
 
     const prizes = [
-      220, 170, 120, 50, 40, 0, 0, 0, 0, 0
+      1000, 550, 275, 125, 50, 0, 0, 0, 0, 0
     ].map((reward, i) => ({ position: i + 1, reward }));
 
     res.json({
@@ -186,7 +186,7 @@ app.get('/api/prev-leaderboard/betbolt', async (req, res) => {
     leaderboard = leaderboard.slice(0, 10);
 
     const prizes = [
-      220, 170, 120, 50, 40, 0, 0, 0, 0, 0
+      1000, 550, 275, 125, 50, 0, 0, 0, 0, 0
     ].map((reward, i) => ({ position: i + 1, reward }));
 
     res.json({
